@@ -4,7 +4,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // API key and URL (stored securely in background script)
-const GEMINI_API_KEY = "AIzaSyCU0w3DGO7aoT0g_TVPiM79gFHfc_51M1o"; // Replace with your actual API key
+const GEMINI_API_KEY = "Your API key"; // Replace with your actual API key
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
 
