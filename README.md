@@ -37,23 +37,22 @@ A powerful Chrome extension that helps you find synonyms and antonyms for any wo
 
 ## 🚀 Installation
 
-1. Download or clone this repository
-2. Open Chrome and go to `chrome://extensions/`
-3. Enable "Developer mode" in the top right
-4. Click "Load unpacked" and select the extension directory
-5. Configure your API key in `config.js`
+1. Visit the Chrome Web Store (link coming soon)
+2. Click "Add to Chrome"
+3. Click "Add Extension" when prompted
+4. The extension icon will appear in your browser toolbar
 
 ## 🛠️ Technical Requirements
 
 - Chrome Browser (Latest version recommended)
-- API Key for Gemini AI
 - Internet connection for fetching results
 
-## 🔒 Permissions
+## 🔒 Privacy & Permissions
 
-The extension requires the following permissions:
-javascript:manifest.json
-
+This extension requires:
+- Access to selected text on webpages
+- Storage for saving preferences
+- Internet access for AI-powered results
 
 ## 💡 Usage
 
@@ -86,13 +85,6 @@ The extension automatically:
 - Syncs theme preferences
 - Maintains search history
 
-## 🤝 Contributing
+## 📝 Support
 
-Feel free to:
-- Report bugs
-- Suggest features
-- Submit pull requests
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+For support or inquiries, please contact us through the Chrome Web Store listing.
