@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Synonyms Finder",
-  "version": "1.0",
-  "description": "Find synonyms and antonyms for selected words using AI.",
+  "version": "1.0.0",
+  "description": "Ai based extension to find synonyms and antonyms of words",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -27,13 +27,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["config.js", "content.js"]
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["config.js"],
-      "matches": ["<all_urls>"]
+      "js": ["content.js"]
     }
   ],
   "commands": {
@@ -44,7 +38,7 @@
         "chromeos": "Alt+Shift+S",
         "linux": "Alt+Shift+S"
       },
-      "description": "Open synonym finder"
+      "description": "Ai based chrome extension to find synonyms and antonyms of words"
     }
   }
 }

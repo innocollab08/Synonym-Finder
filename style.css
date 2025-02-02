@@ -86,6 +86,7 @@ h3 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-height: 30px;
 }
 
 .word-chip {
@@ -305,4 +306,19 @@ h3 {
 
 .search-wrapper {
   flex: 1;
+}
+
+.loading {
+  color: var(--secondary-text);
+  font-style: italic;
+}
+
+.error {
+  color: #f44336;
+  font-style: italic;
+}
+
+.no-results {
+  color: var(--secondary-text);
+  font-style: italic;
 }

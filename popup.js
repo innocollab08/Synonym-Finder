@@ -3,10 +3,21 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeTheme();
 
   const output = document.getElementById("output");
-  const { GEMINI_API_KEY: apiKey, GEMINI_API_URL: apiUrl } = window.config;
 
-  // Get word of the day
-  getWordOfDay(apiKey, apiUrl);
+  // Get word of the day using background script
+  chrome.runtime
+    .sendMessage({ action: "getWordOfDay" })
+    .then((response) => {
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      displayWordOfDay(response);
+    })
+    .catch((error) => {
+      console.error("Error fetching word of day:", error);
+      document.getElementById("dailyWord").textContent =
+        "Error loading word of the day";
+    });
 
   // Set up tab switching
   const tabButtons = document.querySelectorAll(".tab-button");
@@ -19,17 +30,17 @@ document.addEventListener("DOMContentLoaded", () => {
   // Set up search button listener
   document
     .getElementById("searchButton")
-    .addEventListener("click", () => searchWord(apiKey, apiUrl));
+    .addEventListener("click", () => searchWord());
 
   // Set up input enter key listener
   document.getElementById("searchInput").addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
-      searchWord(apiKey, apiUrl);
+      searchWord();
     }
   });
 
   // Handle word selection message
-  chrome.runtime.onMessage.addListener((message) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "wordSelected") {
       const word = message.word;
       console.log("Word selected:", word);
@@ -40,8 +51,16 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Show the selected text tab
+      const tabButtons = document.querySelectorAll(".tab-button");
+      tabButtons.forEach((button) => {
+        if (button.dataset.tab === "selectedText") {
+          button.click();
+        }
+      });
+
       output.innerHTML = `Fetching synonyms for: <b>${word}</b>`;
-      fetchSynonyms(word, apiKey, apiUrl);
+      fetchSynonyms(word);
     }
   });
 
@@ -55,7 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       output.innerHTML = `Fetching synonyms for: <b>${result.selectedWord}</b>`;
-      fetchSynonyms(result.selectedWord, apiKey, apiUrl);
+      fetchSynonyms(result.selectedWord);
       chrome.storage.local.remove("selectedWord");
     }
   });
@@ -87,97 +106,63 @@ function openTab(event, tabName) {
 }
 
 // Function to fetch synonyms for selected text
-async function fetchSynonyms(word, apiKey, apiUrl) {
-  const output = document.getElementById("output");
+async function fetchSynonyms(word) {
   const synonymsList = document.getElementById("synonymsList");
   const antonymsList = document.getElementById("antonymsList");
   const results = document.getElementById("results");
 
-  // Check if required elements exist
-  if (!output || !synonymsList || !antonymsList || !results) {
-    console.error("Required DOM elements not found:", {
-      output: !!output,
-      synonymsList: !!synonymsList,
-      antonymsList: !!antonymsList,
-      results: !!results,
-    });
-    return;
-  }
-
   try {
-    const response = await fetch(`${apiUrl}?key=${apiKey}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `Please provide synonyms and antonyms for the word "${word}" in the following JSON format:
-            {
-              "synonyms": ["word1", "word2", "word3"],
-              "antonyms": ["word1", "word2", "word3"]
-            }`,
-              },
-            ],
-          },
-        ],
-      }),
+    // Show loading state
+    synonymsList.innerHTML = '<span class="loading">Loading...</span>';
+    antonymsList.innerHTML = '<span class="loading">Loading...</span>';
+    results.style.display = "block";
+
+    const response = await chrome.runtime.sendMessage({
+      action: "fetchSynonyms",
+      word: word,
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.error) {
+      throw new Error(response.error);
     }
 
-    const data = await response.json();
+    const result = response.candidates[0].content.parts[0].text;
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
 
-    if (!data.candidates || !data.candidates[0]?.content?.parts[0]?.text) {
+    if (!jsonMatch) {
       throw new Error("Invalid response format");
     }
 
-    const result = data.candidates[0].content.parts[0].text;
-
-    // Extract JSON from the response
-    const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("No JSON found in response");
-    }
-
-    // Parse the JSON
     const parsedResult = JSON.parse(jsonMatch[0]);
 
-    if (!parsedResult.synonyms || !parsedResult.antonyms) {
-      throw new Error("Missing synonyms or antonyms in response");
-    }
-
-    // Update status
-    output.innerHTML = `Results for: <b>${word}</b>`;
-
-    // Show results container
-    results.style.display = "block";
-
     // Update synonyms
-    synonymsList.innerHTML = parsedResult.synonyms
-      .map((word) => `<span class="word-chip">${word}</span>`)
-      .join("");
+    synonymsList.innerHTML =
+      parsedResult.synonyms.length > 0
+        ? parsedResult.synonyms
+            .map((word) => `<span class="word-chip">${word}</span>`)
+            .join("")
+        : "<span class='no-results'>No synonyms found</span>";
 
     // Update antonyms
-    antonymsList.innerHTML = parsedResult.antonyms
-      .map((word) => `<span class="word-chip">${word}</span>`)
-      .join("");
+    antonymsList.innerHTML =
+      parsedResult.antonyms.length > 0
+        ? parsedResult.antonyms
+            .map((word) => `<span class="word-chip">${word}</span>`)
+            .join("")
+        : "<span class='no-results'>No antonyms found</span>";
+
+    // Show results
+    results.style.display = "block";
   } catch (error) {
-    console.error("Error details:", error);
-    output.innerHTML = "Error fetching results. Please try again.";
-    synonymsList.innerHTML = "";
-    antonymsList.innerHTML = "";
-    results.style.display = "none";
+    console.error("Error fetching synonyms:", error);
+    synonymsList.innerHTML = "<span class='error'>Error fetching data</span>";
+    antonymsList.innerHTML = "<span class='error'>Error fetching data</span>";
+    results.style.display = "block";
   }
 }
 
 // Function to search for synonyms manually
-async function searchWord(apiKey, apiUrl) {
+async function searchWord() {
   const searchInput = document.getElementById("searchInput");
   const word = searchInput.value.trim();
 
@@ -189,67 +174,54 @@ async function searchWord(apiKey, apiUrl) {
   const searchAntonymsList = document.getElementById("searchAntonymsList");
   const searchResults = document.getElementById("searchResults");
 
-  // Show loading state
-  searchSynonymsList.innerHTML = "Loading...";
-  searchAntonymsList.innerHTML = "Loading...";
-
-  // Make sure search results are visible
-  searchResults.style.display = "block";
-
   try {
-    const response = await fetch(`${apiUrl}?key=${apiKey}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `Please provide synonyms and antonyms for the word "${word}" in the following JSON format only:
-                        {
-                            "synonyms": ["word1", "word2", "word3"],
-                            "antonyms": ["word1", "word2", "word3"]
-                        }`,
-              },
-            ],
-          },
-        ],
-      }),
+    // Show loading state
+    searchSynonymsList.innerHTML = '<span class="loading">Loading...</span>';
+    searchAntonymsList.innerHTML = '<span class="loading">Loading...</span>';
+    searchResults.style.display = "block";
+
+    const response = await chrome.runtime.sendMessage({
+      action: "fetchSynonyms",
+      word: word,
     });
 
-    const data = await response.json();
-    const result = data.candidates[0].content.parts[0].text;
-
-    try {
-      const jsonStr = result.substring(
-        result.indexOf("{"),
-        result.lastIndexOf("}") + 1
-      );
-      const parsedResult = JSON.parse(jsonStr);
-
-      // Update synonyms
-      searchSynonymsList.innerHTML = parsedResult.synonyms
-        .map((word) => `<span class="word-chip">${word}</span>`)
-        .join("");
-
-      // Update antonyms
-      searchAntonymsList.innerHTML = parsedResult.antonyms
-        .map((word) => `<span class="word-chip">${word}</span>`)
-        .join("");
-
-      // Make sure copy buttons are set up
-      setupCopyButtons();
-    } catch (parseError) {
-      searchSynonymsList.innerHTML = "Error parsing results";
-      searchAntonymsList.innerHTML = "Error parsing results";
-      console.error(parseError);
+    if (response.error) {
+      throw new Error(response.error);
     }
+
+    const result = response.candidates[0].content.parts[0].text;
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
+
+    if (!jsonMatch) {
+      throw new Error("Invalid response format");
+    }
+
+    const parsedResult = JSON.parse(jsonMatch[0]);
+
+    // Update synonyms
+    searchSynonymsList.innerHTML =
+      parsedResult.synonyms.length > 0
+        ? parsedResult.synonyms
+            .map((word) => `<span class="word-chip">${word}</span>`)
+            .join("")
+        : "<span class='no-results'>No synonyms found</span>";
+
+    // Update antonyms
+    searchAntonymsList.innerHTML =
+      parsedResult.antonyms.length > 0
+        ? parsedResult.antonyms
+            .map((word) => `<span class="word-chip">${word}</span>`)
+            .join("")
+        : "<span class='no-results'>No antonyms found</span>";
+
+    // Make sure copy buttons are set up
+    setupCopyButtons();
   } catch (error) {
-    searchSynonymsList.innerHTML = "Error fetching data";
-    searchAntonymsList.innerHTML = "Error fetching data";
-    console.error(error);
+    console.error("Search error:", error);
+    searchSynonymsList.innerHTML =
+      "<span class='error'>Error fetching data</span>";
+    searchAntonymsList.innerHTML =
+      "<span class='error'>Error fetching data</span>";
   }
 }
 
@@ -299,88 +271,45 @@ function setupCopyButtons() {
   });
 }
 
-// Function to get word of the day
-async function getWordOfDay(apiKey, apiUrl) {
-  const dailyWord = document.getElementById("dailyWord");
-  const wordDate = document.getElementById("wordDate");
-  const wordMeaning = document.getElementById("wordMeaning");
-  const dailySynonymsList = document.getElementById("dailySynonymsList");
-  const dailyAntonymsList = document.getElementById("dailyAntonymsList");
-
-  // Check if we already have a word for today
-  const today = new Date().toDateString();
-  const stored = await chrome.storage.local.get(["wordOfDay"]);
-
-  if (stored.wordOfDay && stored.wordOfDay.date === today) {
-    displayWordOfDay(stored.wordOfDay);
-    return;
-  }
-
+function displayWordOfDay(response) {
   try {
-    const response = await fetch(`${apiUrl}?key=${apiKey}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `Generate a random sophisticated word with its meaning, synonyms, and antonyms in the following JSON format:
-            {
-              "word": "word",
-              "meaning": "detailed meaning of the word",
-              "synonyms": ["word1", "word2", "word3"],
-              "antonyms": ["word1", "word2", "word3"]
-            }`,
-              },
-            ],
-          },
-        ],
-      }),
-    });
+    const result = response.candidates[0].content.parts[0].text;
+    const jsonMatch = result.match(/\{[\s\S]*\}/);
 
-    const data = await response.json();
-    const result = data.candidates[0].content.parts[0].text;
-    const jsonStr = result.substring(
-      result.indexOf("{"),
-      result.lastIndexOf("}") + 1
-    );
-    const parsedResult = JSON.parse(jsonStr);
+    if (!jsonMatch) {
+      throw new Error("Invalid response format");
+    }
 
-    // Store word of the day
-    const wordOfDay = {
-      ...parsedResult,
-      date: today,
-    };
+    const parsedResult = JSON.parse(jsonMatch[0]);
 
-    await chrome.storage.local.set({ wordOfDay });
-    displayWordOfDay(wordOfDay);
+    const dailyWord = document.getElementById("dailyWord");
+    const wordDate = document.getElementById("wordDate");
+    const wordMeaning = document.getElementById("wordMeaning");
+    const dailySynonymsList = document.getElementById("dailySynonymsList");
+    const dailyAntonymsList = document.getElementById("dailyAntonymsList");
+
+    // Update UI elements
+    dailyWord.textContent = parsedResult.word;
+    wordDate.textContent = new Date().toLocaleDateString();
+    wordMeaning.textContent = parsedResult.meaning;
+
+    // Update synonyms
+    dailySynonymsList.innerHTML = parsedResult.synonyms
+      .map((word) => `<span class="word-chip">${word}</span>`)
+      .join("");
+
+    // Update antonyms
+    dailyAntonymsList.innerHTML = parsedResult.antonyms
+      .map((word) => `<span class="word-chip">${word}</span>`)
+      .join("");
+
+    // Make word pronounceable
+    setupPronunciation();
   } catch (error) {
-    dailyWord.textContent = "Error loading word of the day";
-    console.error(error);
+    console.error("Error displaying word of day:", error);
+    document.getElementById("dailyWord").textContent =
+      "Error loading word of the day";
   }
-}
-
-function displayWordOfDay(data) {
-  const dailyWord = document.getElementById("dailyWord");
-  const wordDate = document.getElementById("wordDate");
-  const wordMeaning = document.getElementById("wordMeaning");
-  const dailySynonymsList = document.getElementById("dailySynonymsList");
-  const dailyAntonymsList = document.getElementById("dailyAntonymsList");
-
-  dailyWord.textContent = data.word;
-  wordDate.textContent = new Date(data.date).toLocaleDateString();
-  wordMeaning.textContent = data.meaning;
-
-  dailySynonymsList.innerHTML = data.synonyms
-    .map((word) => `<span class="word-chip">${word}</span>`)
-    .join("");
-
-  dailyAntonymsList.innerHTML = data.antonyms
-    .map((word) => `<span class="word-chip">${word}</span>`)
-    .join("");
 }
 
 function initializeTheme() {
@@ -426,10 +355,20 @@ function initializeTheme() {
 
 function setupPronunciation() {
   const pronounceButtons = document.querySelectorAll(".pronounce-btn");
+  
+  // Check if speech synthesis is supported
+  if (!window.speechSynthesis) {
+    pronounceButtons.forEach(button => {
+      button.style.display = 'none';
+    });
+    console.log('Speech synthesis not supported');
+    return;
+  }
+
   const synth = window.speechSynthesis;
 
   pronounceButtons.forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", async () => {
       let wordToSpeak = "";
 
       // Get the word based on which button was clicked
@@ -448,31 +387,108 @@ function setupPronunciation() {
 
       if (!wordToSpeak) return;
 
-      // Stop any ongoing speech
-      synth.cancel();
+      try {
+        // Stop any ongoing speech
+        synth.cancel();
 
-      // Create and configure utterance
-      const utterance = new SpeechSynthesisUtterance(wordToSpeak);
-      utterance.rate = 0.9; // Slightly slower for clarity
-      utterance.pitch = 1;
-      utterance.lang = "en-US"; // Set language to English
+        // Create and configure utterance
+        const utterance = new SpeechSynthesisUtterance(wordToSpeak);
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.lang = "en-US";
 
-      // Visual feedback
-      button.classList.add("playing");
+        // Get available voices
+        let voices = synth.getVoices();
+        
+        // If voices aren't loaded yet, wait for them
+        if (voices.length === 0) {
+          await new Promise(resolve => {
+            speechSynthesis.addEventListener('voiceschanged', () => {
+              voices = synth.getVoices();
+              resolve();
+            }, { once: true });
+          });
+        }
 
-      // Remove playing class when speech ends
-      utterance.onend = () => {
+        // Try to find an English voice
+        const englishVoice = voices.find(voice => 
+          voice.lang.startsWith('en-') && !voice.localService
+        ) || voices[0];
+
+        if (englishVoice) {
+          utterance.voice = englishVoice;
+        }
+
+        // Visual feedback
+        button.classList.add("playing");
+
+        // Remove playing class when speech ends
+        utterance.onend = () => {
+          button.classList.remove("playing");
+        };
+
+        // Handle errors
+        utterance.onerror = (event) => {
+          button.classList.remove("playing");
+          console.log('Speech synthesis error:', event.error);
+          // Optionally show a user-friendly message
+          button.setAttribute('title', 'Speech synthesis unavailable');
+        };
+
+        // Speak the word
+        synth.speak(utterance);
+      } catch (error) {
+        console.log('Speech synthesis error:', error);
         button.classList.remove("playing");
-      };
-
-      // Handle errors
-      utterance.onerror = () => {
-        button.classList.remove("playing");
-        console.error("Speech synthesis failed");
-      };
-
-      // Speak the word
-      synth.speak(utterance);
+        button.setAttribute('title', 'Speech synthesis unavailable');
+      }
     });
   });
+}
+
+// Function to get word of the day
+async function getWordOfDay() {
+  const dailyWord = document.getElementById("dailyWord");
+  const wordDate = document.getElementById("wordDate");
+  const wordMeaning = document.getElementById("wordMeaning");
+  const dailySynonymsList = document.getElementById("dailySynonymsList");
+  const dailyAntonymsList = document.getElementById("dailyAntonymsList");
+
+  // Check if we already have a word for today
+  const today = new Date().toDateString();
+  const stored = await chrome.storage.local.get(["wordOfDay"]);
+
+  if (stored.wordOfDay && stored.wordOfDay.date === today) {
+    displayWordOfDay(stored.wordOfDay);
+    return;
+  }
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: "getWordOfDay",
+    });
+
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    const result = response.candidates[0].content.parts[0].text;
+    const jsonStr = result.substring(
+      result.indexOf("{"),
+      result.lastIndexOf("}") + 1
+    );
+    const parsedResult = JSON.parse(jsonStr);
+
+    // Store word of the day
+    const wordOfDay = {
+      ...parsedResult,
+      date: today,
+    };
+
+    await chrome.storage.local.set({ wordOfDay });
+    displayWordOfDay(wordOfDay);
+  } catch (error) {
+    dailyWord.textContent = "Error loading word of the day";
+    console.error(error);
+  }
 }
