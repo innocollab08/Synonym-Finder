@@ -4,7 +4,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // API key and URL (stored securely in background script)
-const GEMINI_API_KEY = "API KEY"; // Replace with your actual API key
+const GEMINI_API_KEY = "APIKEY"; // Replace with your actual API key
 const GEMINI_API_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp-01-21:generateContent";
 
