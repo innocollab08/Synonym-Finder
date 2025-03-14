@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Synonyms Finder",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "Ai based extension to find synonyms and antonyms of words",
   "icons": {
     "16": "icons/icon16.png",

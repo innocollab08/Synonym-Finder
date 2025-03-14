@@ -110,12 +110,18 @@ async function fetchSynonyms(word) {
   const synonymsList = document.getElementById("synonymsList");
   const antonymsList = document.getElementById("antonymsList");
   const results = document.getElementById("results");
+  const selectedWordDisplay = document.getElementById("selectedWordDisplay");
 
   try {
     // Show loading state
     synonymsList.innerHTML = '<span class="loading">Loading...</span>';
     antonymsList.innerHTML = '<span class="loading">Loading...</span>';
     results.style.display = "block";
+    
+    // Display the selected word in the header
+    if (selectedWordDisplay) {
+      selectedWordDisplay.textContent = word;
+    }
 
     const response = await chrome.runtime.sendMessage({
       action: "fetchSynonyms",

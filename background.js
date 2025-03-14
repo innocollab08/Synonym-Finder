@@ -4,9 +4,9 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // API key and URL (stored securely in background script)
-const GEMINI_API_KEY = "Your API key"; // Replace with your actual API key
+const GEMINI_API_KEY = "API KEY"; // Replace with your actual API key
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp-01-21:generateContent";
 
 // Add API key to headers
 const headers = {
@@ -18,6 +18,9 @@ const headers = {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "wordSelected") {
     chrome.storage.local.set({ selectedWord: request.word });
+  } else if (request.action === "openPopup") {
+    // Programmatically open the extension popup
+    chrome.action.openPopup();
   } else if (request.action === "fetchSynonyms") {
     fetchSynonymsSecure(request.word)
       .then((response) => {

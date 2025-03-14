@@ -202,6 +202,63 @@ h3 {
   transform: scale(0.95);
 }
 
+.selected-word-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 15px;
+  gap: 8px;
+  background-color: var(--section-bg);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 4px solid #4285f4;
+}
+
+.selected-word-header h3 {
+  margin: 0;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.pronounce-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--secondary-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.pronounce-btn:hover {
+  background-color: var(--hover-bg);
+  color: var(--text-color);
+}
+
+.pronounce-btn:active {
+  transform: scale(0.95);
+}
+
+.pronounce-btn.playing {
+  color: #4285f4;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 .word-of-day-header {
   text-align: center;
   margin-bottom: 15px;
@@ -268,33 +325,6 @@ h3 {
 
 [data-theme="light"] .moon-icon {
   display: block;
-}
-
-.pronounce-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: var(--secondary-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  margin-left: 8px;
-}
-
-.pronounce-btn:hover {
-  background-color: var(--hover-bg);
-  color: var(--text-color);
-}
-
-.pronounce-btn:active {
-  transform: scale(0.95);
-}
-
-.pronounce-btn.playing {
-  color: #4caf50;
 }
 
 .search-wrapper,
